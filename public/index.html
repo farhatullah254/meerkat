@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meerkat</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2430;
+    --line: #2a3441;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4493f8;
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --live: #3fb950;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(13,17,23,.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+
+  h1 { font-size: 15px; margin: 0; letter-spacing: .3px; font-weight: 600; }
+
+  .tabs { display: flex; gap: 4px; background: var(--panel); padding: 3px; border-radius: 8px; }
+  .tabs button {
+    background: none; border: 0; color: var(--muted); cursor: pointer;
+    padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    font-family: inherit;
+  }
+  .tabs button.on { background: var(--panel-2); color: var(--text); }
+
+  .status { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12px; }
+  .refresh {
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit;
+  }
+  .refresh:disabled { opacity: .5; cursor: default; }
+
+  main { padding: 24px; max-width: 1500px; margin: 0 auto; }
+
+  .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .total {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  }
+  .total .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .7px; }
+  .total .value { font-size: 30px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .total.live .value { color: var(--live); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 12px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 15px 16px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .card.down { border-color: var(--bad); }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .card h2 { font-size: 14px; margin: 0; font-weight: 600; }
+  .card a { color: var(--muted); text-decoration: none; font-size: 11px; }
+  .card a:hover { color: var(--accent); }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot.ok { background: var(--good); }
+  .dot.bad { background: var(--bad); }
+  .dot.unknown { background: var(--muted); }
+
+  .now { display: flex; align-items: baseline; gap: 8px; }
+  .now .n { font-size: 34px; font-weight: 650; color: var(--live); font-variant-numeric: tabular-nums; line-height: 1; }
+  .now .cap { color: var(--muted); font-size: 11px; }
+
+  .pulse {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--live);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat .k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  .delta { font-size: 11px; font-weight: 600; }
+  .delta.up { color: var(--good); }
+  .delta.down { color: var(--bad); }
+  .delta.flat { color: var(--muted); }
+
+  .spark { width: 100%; height: 34px; display: block; }
+
+  .note { color: var(--muted); font-size: 11px; }
+  .err {
+    color: var(--bad); font-size: 11px; background: rgba(248,81,73,.08);
+    border: 1px solid rgba(248,81,73,.25); border-radius: 6px; padding: 7px 9px;
+    word-break: break-word;
+  }
+
+  .alerts { margin-bottom: 22px; display: flex; flex-direction: column; gap: 8px; }
+  .alert {
+    display: flex; gap: 10px; align-items: baseline;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .alert.critical { border-color: rgba(248,81,73,.4); background: rgba(248,81,73,.08); }
+  .alert.info { border-color: rgba(68,147,248,.35); background: rgba(68,147,248,.07); }
+  .alert time { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+
+  .empty { color: var(--muted); padding: 60px 0; text-align: center; }
+  .empty code { background: var(--panel); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MEERKAT</h1>
+  <div class="tabs">
+    <button id="tab-ga" class="on">Analytics</button>
+    <button id="tab-gsc">Search Console</button>
+    <button id="tab-index">Indexing</button>
+    <button id="tab-ranks">Ranks</button>
+    <button id="tab-alerts">Alerts</button>
+  </div>
+  <div class="status">
+    <span id="clock">—</span>
+    <button class="refresh" id="refresh">Refresh now</button>
+  </div>
+</header>
+
+<main>
+  <div id="fatal" class="empty hidden"></div>
+  <section id="view-ga"></section>
+  <section id="view-gsc" class="hidden"></section>
+  <section id="view-index" class="hidden"></section>
+  <section id="view-ranks" class="hidden"></section>
+  <section id="view-alerts" class="hidden"></section>
+</main>
+
+<script>
+const REFRESH_MS = 15000;
+const SEO_REFRESH_MS = 5 * 60000;
+let data = null;
+let seo = null;
+let tab = 'ga';
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString('en-US') : '—');
+const fmt1 = (n) => (Number.isFinite(n) ? n.toFixed(1) : '—');
+
+function ago(ts) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function spark(values, color) {
+  if (!values || values.length < 2) return '';
+  const max = Math.max(...values, 1);
+  const w = 100, h = 34, step = w / (values.length - 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(2)},${(h - (v / max) * (h - 3) - 1.5).toFixed(2)}`);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="${color}" stroke-width="1.5"
+      stroke-linejoin="round" stroke-linecap="round"
+      vector-effect="non-scaling-stroke" points="${pts.join(' ')}"/>
+  </svg>`;
+}
+
+function deltaTag(cur, prev) {
+  if (!Number.isFinite(cur) || !Number.isFinite(prev) || prev === 0) {
+    return '<span class="delta flat">—</span>';
+  }
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+  const sign = pct > 0 ? '+' : '';
+  return `<span class="delta ${cls}">${sign}${pct}%</span>`;
+}
+
+function healthDot(h) {
+  if (!h || h.ok === null || h.ok === undefined) return '<span class="dot unknown"></span>';
+  return `<span class="dot ${h.ok ? 'ok' : 'bad'}"></span>`;
+}
+
+function totalsRow(items) {
+  return `<div class="totals">${items
+    .map((t) => `<div class="total${t.live ? ' live' : ''}">
+      <div class="label">${esc(t.label)}</div>
+      <div class="value">${t.value}</div>
+    </div>`)
+    .join('')}</div>`;
+}
+
+function renderGA() {
+  const t = data.totals;
+  const head = totalsRow([
+    { label: 'Active right now', value: fmt(t.activeNow), live: true },
+    { label: 'Users today', value: fmt(t.usersToday) },
+    { label: 'Users yesterday', value: fmt(t.usersYesterday) },
+    { label: 'Sessions 24h', value: fmt(t.sessions24h) },
+    { label: 'Sites down', value: fmt(t.sitesDown) },
+  ]);
+
+  const cards = data.sites.map((s) => {
+    const g = s.ga4;
+    const errs = [s.errors.activeNow, s.errors.ga4].filter(Boolean);
+    const pace = g?.pace;
+
+    let paceLine = '<div class="note">Baseline building — needs a few days of history.</div>';
+    if (pace && pace.expected !== null && pace.deviationPct !== null) {
+      const cls = pace.deviationPct > 0 ? 'up' : pace.deviationPct < 0 ? 'down' : 'flat';
+      const sign = pace.deviationPct > 0 ? '+' : '';
+      const spread = pace.stdev > 0
+        ? ` · normal range ${fmt1(Math.max(0, pace.expected - pace.stdev))}–${fmt1(pace.expected + pace.stdev)}`
+        : '';
+      const sigma = Number.isFinite(pace.z) ? ` (${pace.z > 0 ? '+' : ''}${pace.z.toFixed(1)}σ)` : '';
+      paceLine = `<div class="note">Pace <span class="delta ${cls}">${sign}${pace.deviationPct}%</span>${sigma}
+        vs ${pace.days}-day norm — ${fmt(pace.actual)} vs ~${fmt1(pace.expected)} by this hour${spread}</div>`;
+    }
+
+    return `<div class="card${s.health?.ok === false ? ' down' : ''}">
+      <div class="card-top">
+        <div>
+          <h2>${healthDot(s.health)}${esc(s.name)}</h2>
+          ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url.replace(/^https?:\/\//, ''))}</a>` : ''}
+        </div>
+        ${Number.isFinite(s.activeNow) && s.activeNow > 0 ? '<span class="pulse"></span>' : ''}
+      </div>
+
+      <div class="now">
+        <span class="n">${fmt(s.activeNow)}</span>
+        <span class="cap">active in last 30 min</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">Today</div><div class="v">${fmt(g?.usersToday)}</div></div>
+        <div class="stat"><div class="k">Yesterday</div><div class="v">${fmt(g?.usersYesterday)}</div></div>
+        <div class="stat"><div class="k">7-day users</div><div class="v">${fmt(g?.users7d)}</div></div>
+      </div>
+
+      ${spark((g?.hourly ?? []).map((h) => h.sessions), 'var(--accent)')}
+      ${paceLine}
+      ${errs.map((e) => `<div class="err">${esc(e)}</div>`).join('')}
+    </div>`;
+  });
+
+  $('view-ga').innerHTML = head + `<div class="grid">${cards.join('')}</div>`;
+}
+
+function renderGSC() {
+  const t = data.totals;
+  const head = totalsRow([
+    { label: 'Clicks last 24h', value: fmt(t.clicks24h) },
+    { label: 'Clicks last 7d', value: fmt(t.clicks7d) },
+    { label: 'Impressions 7d', value: fmt(t.impressions7d) },
+  ]);
+
+  const cards = data.sites.map((s) => {
+    const c = s.gsc;
+    const errs = [s.errors.gsc, c?.hourlyError].filter(Boolean);
+    const prevAvg = c?.avgDailyClicks7d;
+
+    return `<div class="card">
+      <div class="card-top">
+        <div>
+          <h2>${esc(s.name)}</h2>
+          ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url.replace(/^https?:\/\//, ''))}</a>` : ''}
+        </div>
+      </div>
+
+      <div class="now">
+        <span class="n" style="color:var(--accent)">${fmt(c?.clicks24h)}</span>
+        <span class="cap">clicks last 24h ${c ? deltaTag(c.clicks24h, prevAvg) : ''}</span>
+      </div>
+      ${c?.freshness
+          ? `<div class="note">Search Console data runs ~${c.freshness.lagHours}h behind;
+             this covers the 24h ending ${new Date(c.freshness.newest).toLocaleString()}</div>`
+          : ''}
+
+      <div class="stats">
+        <div class="stat"><div class="k">Clicks 7d</div><div class="v">${fmt(c?.clicks7d)}</div></div>
+        <div class="stat"><div class="k">Impr. 7d</div><div class="v">${fmt(c?.impressions7d)}</div></div>
+        <div class="stat"><div class="k">Avg pos</div><div class="v">${fmt1(c?.position7d)}</div></div>
+      </div>
+
+      ${spark((c?.daily ?? []).map((d) => d.clicks), 'var(--warn)')}
+      <div class="note">${c ? `28-day click trend · 7d daily avg ${fmt1(prevAvg)}` : 'No data yet'}</div>
+      ${c && c.hourlyAvailable === false && !c.hourlyError
+          ? '<div class="note">Hourly (24h) data unavailable for this property.</div>' : ''}
+      ${errs.map((e) => `<div class="err">${esc(e)}</div>`).join('')}
+    </div>`;
+  });
+
+  $('view-gsc').innerHTML = head + `<div class="grid">${cards.join('')}</div>`;
+}
+
+function renderAlerts() {
+  const list = data.alerts ?? [];
+  if (list.length === 0) {
+    $('view-alerts').innerHTML = '<div class="empty">No alerts fired yet.</div>';
+    return;
+  }
+  $('view-alerts').innerHTML = `<div class="alerts">${list
+    .map((a) => `<div class="alert ${esc(a.severity)}">
+      <strong>${esc(a.site)}</strong>
+      <span>${esc(a.message)}</span>
+      <time>${ago(a.fired_at)}</time>
+    </div>`)
+    .join('')}</div>`;
+}
+
+function bar(indexed, total) {
+  if (!total) return '';
+  const pct = Math.round((indexed / total) * 100);
+  const color = pct >= 90 ? 'var(--good)' : pct >= 60 ? 'var(--warn)' : 'var(--bad)';
+  return `<div style="background:var(--panel-2);border-radius:4px;height:8px;overflow:hidden">
+    <div style="width:${pct}%;height:100%;background:${color}"></div>
+  </div>
+  <div class="note">${indexed} of ${total} indexed (${pct}%)</div>`;
+}
+
+function renderIndexing() {
+  if (!seo) {
+    $('view-index').innerHTML = '<div class="empty">Loading…</div>';
+    return;
+  }
+
+  const withData = seo.sites.filter((s) => s.indexing);
+  if (withData.length === 0) {
+    $('view-index').innerHTML =
+      '<div class="empty">No inspection data yet — run <code>npm run harvest</code>.</div>';
+    return;
+  }
+
+  const totals = withData.reduce(
+    (t, s) => ({
+      c: t.c + s.indexing.checked,
+      ci: t.ci + s.indexing.indexed,
+      canon: t.canon + s.indexing.canonicalIssues,
+      noSchema: t.noSchema + s.indexing.noSchema,
+    }),
+    { c: 0, ci: 0, canon: 0, noSchema: 0 }
+  );
+
+  const head = totalsRow([
+    { label: 'Content pages', value: fmt(totals.c) },
+    { label: 'Indexed', value: fmt(totals.ci) },
+    { label: 'Not indexed', value: fmt(totals.c - totals.ci) },
+    { label: 'Canonical conflicts', value: fmt(totals.canon) },
+    { label: 'Indexed, no schema', value: fmt(totals.noSchema) },
+  ]);
+
+  const cards = withData.map((s) => {
+    const ix = s.indexing;
+    const young = s.ageDays !== null && s.ageDays < 14;
+    return `<div class="card">
+      <div class="card-top"><div><h2>${esc(s.name.trim())}</h2>
+        <div class="note">${s.ageDays === null ? '' : `${s.ageDays}d of search history`}</div></div></div>
+      ${bar(ix.indexed, ix.checked)}
+      ${young
+          ? `<div class="note">Site is only ${s.ageDays} days old; Google is still working through it.</div>`
+          : ''}
+      ${ix.byState.length
+          ? `<div class="stats" style="grid-template-columns:1fr">
+              ${ix.byState.map((b) => `<div class="stat">
+                <div class="k">${esc(b.state)}</div><div class="v">${b.n}</div></div>`).join('')}
+            </div>`
+          : '<div class="note">Every content page is indexed.</div>'}
+      ${ix.canonicalIssues > 0
+          ? `<div class="err">${ix.canonicalIssues} page(s) where Google chose a different canonical than declared</div>`
+          : ''}
+      ${ix.noSchema > 0
+          ? `<div class="note">${ix.noSchema} page(s) with no structured data detected</div>`
+          : ''}
+      ${s.notIndexed.length
+          ? `<details><summary class="note" style="cursor:pointer">Show ${s.notIndexed.length} unindexed page(s)</summary>
+             <div style="margin-top:8px">${s.notIndexed
+               .map((p) => `<div class="note" style="word-break:break-all">
+                 <strong>${esc(p.url.replace(/^https?:\/\/[^/]+/, ''))}</strong>
+                 — ${esc(p.coverage_state ?? '')}</div>`)
+               .join('')}</div></details>`
+          : ''}
+    </div>`;
+  });
+
+  $('view-index').innerHTML = head + `<div class="grid">${cards.join('')}</div>`;
+}
+
+function renderRanks() {
+  if (!seo) {
+    $('view-ranks').innerHTML = '<div class="empty">Loading…</div>';
+    return;
+  }
+
+  const withRanks = seo.sites.filter((s) => s.ranks.length > 0);
+  if (withRanks.length === 0) {
+    $('view-ranks').innerHTML =
+      '<div class="empty">No tracked keywords yet — needs sites with search clicks.</div>';
+    return;
+  }
+
+  const cards = withRanks.map((s) => {
+    const rows = s.ranks.map((r) => {
+      let posCell;
+      let chgCell;
+
+      if (r.position === null) {
+        posCell = '<span style="color:var(--bad);font-size:13px">not shown</span>';
+        chgCell = r.daysSinceSeen !== null
+          ? `<span class="delta ${r.daysSinceSeen >= 3 ? 'down' : 'flat'}">last seen ${
+              r.daysSinceSeen === 0 ? 'today' : r.daysSinceSeen + 'd ago'} at #${r.lastSeenPosition}</span>`
+          : '<span class="delta flat">never ranked</span>';
+      } else {
+        posCell = `#${r.position}`;
+        if (r.change === null) {
+          chgCell = '<span class="delta flat">no prior data</span>';
+        } else if (r.change > 0) {
+          chgCell = `<span class="delta up">▲ ${r.change} better</span>`;
+        } else if (r.change < 0) {
+          chgCell = `<span class="delta down">▼ ${Math.abs(r.change)} worse</span>`;
+        } else {
+          chgCell = '<span class="delta flat">no change</span>';
+        }
+      }
+
+      return `<div style="display:grid;grid-template-columns:1fr 88px 150px;gap:8px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)">
+        <div style="font-size:12px;word-break:break-word">${esc(r.query)}
+          ${r.byCountry.length
+            ? `<div class="note">by country (7d): ${r.byCountry
+                .map((c) => `${esc(c.label)} #${c.position}`).join(' · ')}</div>`
+            : ''}</div>
+        <div style="font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right">${posCell}</div>
+        <div style="text-align:right">${chgCell}</div>
+      </div>`;
+    });
+
+    return `<div class="card">
+      <div class="card-top"><div><h2>${esc(s.name.trim())}</h2>
+        <div class="note">its 5 biggest keywords by clicks</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 88px 150px;gap:8px;font-size:10px;
+                  text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding-bottom:2px">
+        <div>Keyword</div><div style="text-align:right">Today</div><div style="text-align:right">vs 7-day avg</div>
+      </div>
+      <div>${rows.join('')}</div>
+    </div>`;
+  });
+
+  const legend = `<div class="card" style="margin-bottom:12px">
+    <div style="font-size:12px;line-height:1.7">
+      <strong>Today</strong> is the site's position in Google on the most recent day Search Console
+      has data for — usually yesterday, since the feed runs a day or two behind.
+      <strong>#1 is best</strong>: a smaller number means higher on the page.<br>
+      <strong>vs 7-day avg</strong> compares today against this keyword's average over the last
+      7 days. <span class="delta up">▲ better</span> means it moved up the page today;
+      <span class="delta down">▼ worse</span> means it slipped down.<br>
+      <strong>not shown</strong> means Google did not display the site for that search on that day.
+      One quiet day on a low-volume keyword is normal — the "last seen" note tells you whether it is
+      a blip or a real disappearance.<br>
+      <strong>by country</strong> uses a 7-day window, because one country over one day is too little
+      data to mean anything. Those numbers will not average out to the headline figure.
+    </div>
+  </div>`;
+
+  $('view-ranks').innerHTML = legend + `<div class="grid">${cards.join('')}</div>`;
+}
+
+function render() {
+  if (!data) return;
+  renderGA();
+  renderGSC();
+  renderIndexing();
+  renderRanks();
+  renderAlerts();
+  $('clock').textContent = 'Updated ' + new Date(data.serverTime).toLocaleTimeString();
+}
+
+function showTab(next) {
+  tab = next;
+  for (const t of ['ga', 'gsc', 'index', 'ranks', 'alerts']) {
+    $('view-' + t).classList.toggle('hidden', t !== tab);
+    $('tab-' + t).classList.toggle('on', t === tab);
+  }
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/state');
+    const json = await res.json();
+    if (json.startupError) {
+      $('fatal').classList.remove('hidden');
+      $('fatal').innerHTML = `<p>${esc(json.startupError)}</p>
+        <p>Fix it, then restart with <code>npm start</code>.</p>`;
+      return;
+    }
+    $('fatal').classList.add('hidden');
+    data = json;
+    render();
+  } catch (err) {
+    $('clock').textContent = 'Server unreachable';
+  }
+}
+
+for (const t of ['ga', 'gsc', 'index', 'ranks', 'alerts']) {
+  $('tab-' + t).onclick = () => showTab(t);
+}
+
+$('refresh').onclick = async () => {
+  const btn = $('refresh');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  try {
+    await fetch('/api/refresh', { method: 'POST' });
+    await load();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refresh now';
+  }
+};
+
+// SEO data only changes on the daily harvest, so it polls far less often than
+// the live figures.
+async function loadSeo() {
+  try {
+    const res = await fetch('/api/seo');
+    const json = await res.json();
+    if (json.startupError) return;
+    seo = json;
+    renderIndexing();
+    renderRanks();
+  } catch {
+    /* the live tabs still work without it */
+  }
+}
+
+load();
+loadSeo();
+setInterval(load, REFRESH_MS);
+setInterval(loadSeo, SEO_REFRESH_MS);
+</script>
+</body>
+</html>

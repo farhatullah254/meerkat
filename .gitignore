@@ -1,0 +1,15 @@
+node_modules/
+.env
+config.json
+config.json.bak
+service-account.json
+apk-analytics-*.json
+*-*.iam.gserviceaccount.json
+*.json.key
+data/*.db
+data/*.db-journal
+data/*.db-wal
+.DS_Store
+logs/
+data/*.db-shm
+data/digests/

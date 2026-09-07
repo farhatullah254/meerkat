@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Meerkat Live",
+  "version": "1.0.0",
+  "description": "Floating live concurrent-viewer cards from the local Meerkat dashboard.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Meerkat Live"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

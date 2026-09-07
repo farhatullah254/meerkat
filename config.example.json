@@ -1,0 +1,20 @@
+{
+  "sites": [
+    {
+      "name": "Example Site One",
+      "ga4PropertyId": "123456789",
+      "gscSite": "sc-domain:example.com",
+      "url": "https://example.com"
+    },
+    {
+      "name": "Example Site Two",
+      "ga4PropertyId": "987654321",
+      "gscSite": "https://two.example.com/",
+      "url": "https://two.example.com",
+      "thresholds": {
+        "trafficDeviationPct": 70,
+        "gscDropPct": 40
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "meerkat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Meerkat — local GA4 + Search Console watchtower for the M&F site network",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --watch --watch-preserve-output --disable-warning=ExperimentalWarning server.js",
+    "discover": "node --disable-warning=ExperimentalWarning scripts/discover.js",
+    "sync": "node --disable-warning=ExperimentalWarning scripts/sync.js",
+    "harvest": "node --disable-warning=ExperimentalWarning scripts/harvest.js",
+    "digest": "node --disable-warning=ExperimentalWarning scripts/digest.js",
+    "check": "node --disable-warning=ExperimentalWarning scripts/check-access.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "google-auth-library": "^9.14.1"
+  }
+}
